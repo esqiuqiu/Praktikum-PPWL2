@@ -10,11 +10,23 @@ class PostController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-    $posts = Post::all();
+        $perPage = (int) $request->input('per_page', 10);
 
-    return view('post.index', compact('posts'));
+        if (!in_array($perPage, [5, 10, 25])) {
+            $perPage = 10;
+        }
+
+        $posts = Post::query()
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $query->where('title', 'like', '%' . $request->search . '%');
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return view('post.index', compact('posts'));
     }
 
     /**
@@ -67,29 +79,28 @@ class PostController extends Controller
 
     public function trash()
     {
-    $posts = Post::onlyTrashed()->get();
+        $posts = Post::onlyTrashed()->get();
 
-    return view('post.trash', compact('posts'));    
+        return view('post.trash', compact('posts'));
     }
 
     public function restore($id)
     {
-    $post = Post::withTrashed()->findOrFail($id);
+        $post = Post::withTrashed()->findOrFail($id);
 
-    $post->restore();
+        $post->restore();
 
-    return redirect()->route('posts.trash')
-        ->with('success', 'Post berhasil dipulihkan.');
+        return redirect()->route('posts.trash')
+            ->with('success', 'Post berhasil dipulihkan.');
     }
 
     public function forceDelete($id)
     {
-    $post = Post::withTrashed()->findOrFail($id);
+        $post = Post::withTrashed()->findOrFail($id);
 
-    $post->forceDelete();
+        $post->forceDelete();
 
-    return redirect()->route('posts.trash')
-        ->with('success', 'Post berhasil dihapus permanen.');
+        return redirect()->route('posts.trash')
+            ->with('success', 'Post berhasil dihapus permanen.');
     }
-
 }
